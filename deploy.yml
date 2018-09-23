@@ -14,10 +14,6 @@
 
 - name: Prepare nodes
   hosts: all
-  handlers:
-  - name: restart ufw
-    service: name=ufw state=restarted
-
   pre_tasks:
   - name: update apt cache if needed
     apt: update_cache=yes cache_valid_time=3600
@@ -37,6 +33,7 @@
     - acl
     - build-essential
     - python-pkg-resources
+    - python-setuptools
 
   - name: install python libs
     pip:
@@ -71,7 +68,7 @@
       creates: "{{ cert_dir }}/{{ fqdn }}.crt"
 
 # Playbook for Stationeers web server.
-# Ubuntu 16.04 is expected.
+# Ubuntu 18.04 is expected.
 - hosts: all
   roles:
   - gortc.nginx
@@ -235,17 +232,17 @@
       environment:
         CLOUDFLARE_EMAIL: "{{ cf_api_email }}"
         CLOUDFLARE_API_KEY: "{{ cf_api_key }}"
-
-    - name: check lego certificate
-      stat:
-        path: "{{ cert_dir }}/{{ item }}.json"
-      register: "lego_cert"
-      loop: "{{ domains }}"
-
-    - assert:
-        that:
-          - "{{ item }}.stat.exists"
-      loop: "{{ lego_cert.results }}"
+#
+#    - name: check lego certificate
+#      stat:
+#        path: "{{ cert_dir }}/{{ item }}.json"
+#      register: "lego_cert"
+#      loop: "{{ domains }}"
+#
+#    - assert:
+#        that:
+#          - "{{ item }}.stat.exists"
+#      loop: "{{ lego_cert.results }}"
 
     - name: ensure that lego timer is enabled and started
       systemd:
@@ -254,7 +251,3 @@
         state: started
         daemon_reload: yes
       loop: "{{ domains }}"
-
-  handlers:
-    - name: reload nginx
-      service: name=nginx state=reloaded
