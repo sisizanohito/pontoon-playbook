@@ -59,4 +59,6 @@ COPY wait-for-it.sh .
 COPY run_webapp.sh .
 COPY run_worker.sh .
 
+RUN chown -R app:app /app/media
+
 CMD ["/app/run_webapp.sh"]

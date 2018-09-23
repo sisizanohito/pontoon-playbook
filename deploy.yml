@@ -141,7 +141,7 @@
 
           # Web app
           webapp:
-            image: gortc/pontoon:v0.1.4
+            image: gortc/pontoon:v0.1.5
             env_file:
             - /home/stationeers/.env
             environment:
@@ -155,7 +155,7 @@
 
           # Worker
           worker:
-            image: gortc/pontoon:v0.1.4
+            image: gortc/pontoon:v0.1.5
             env_file:
             - /home/stationeers/.env
             environment:
