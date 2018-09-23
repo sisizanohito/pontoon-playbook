@@ -128,6 +128,8 @@
       dest: /home/stationeers/.env
 
   - name: "service"
+    tags:
+    - web
     docker_service:
       project_name: st
       definition:
@@ -141,13 +143,14 @@
 
           # Web app
           webapp:
-            image: gortc/pontoon:v0.1.5
+            image: gortc/pontoon:v0.1.8
             env_file:
             - /home/stationeers/.env
             environment:
             - LOCAL_USER_ID=1000
             depends_on:
             - postgresql
+            - rabbit
             command: ["/app/run_webapp.sh"]
             ports:
             - "8000:8000"
@@ -155,7 +158,7 @@
 
           # Worker
           worker:
-            image: gortc/pontoon:v0.1.5
+            image: gortc/pontoon:v0.1.8
             env_file:
             - /home/stationeers/.env
             environment:
@@ -163,6 +166,7 @@
             depends_on:
             - postgresql
             - webapp
+            - rabbit
             command: ["/app/run_worker.sh"]
 
           postgresql:
@@ -172,6 +176,17 @@
             - POSTGRES_USER=pontoon
             - POSTGRES_PASSWORD=asdf
             - POSTGRES_DB=pontoon
+
+          # Celery broker
+          rabbit:
+            image: "rabbitmq:3"
+            hostname: "rabbit"
+            environment:
+              RABBITMQ_DEFAULT_USER: "guest"
+              RABBITMQ_DEFAULT_VHOST: "/"
+            ports:
+              - "15672:15672"
+              - "5672:5672"
 
 # Enable LetsEncrypt.
 - name: LetsEncrypt certificates

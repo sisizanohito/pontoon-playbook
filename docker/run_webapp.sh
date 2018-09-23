@@ -10,4 +10,4 @@ echo ">>> Setting up the db for Django"
 python manage.py migrate
 
 echo ">>> Starting server"
-gunicorn --bind=0.0.0.0 pontoon.wsgi:application
+gunicorn --bind=0.0.0.0 --timeout 300 --graceful-timeout 200  pontoon.wsgi:application
