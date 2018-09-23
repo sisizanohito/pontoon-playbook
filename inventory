@@ -1,0 +1,2 @@
+[rs]
+192.168.2.8 ansible_user=root fqdn=dev.st.gortc.io

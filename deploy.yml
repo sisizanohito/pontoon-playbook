@@ -1,0 +1,260 @@
+---
+- hosts: all
+  gather_facts: False
+
+  tasks:
+  - name: install python 2
+    raw: test -e /usr/bin/python || (apt -y update && apt install -y python)
+    register: test
+    changed_when: test.stdout
+
+  - name: remove require tty
+    lineinfile: regexp="^\s+\w+\s+requiretty" dest=/etc/sudoers state=absent
+
+
+- name: Prepare nodes
+  hosts: all
+  handlers:
+  - name: restart ufw
+    service: name=ufw state=restarted
+
+  pre_tasks:
+  - name: update apt cache if needed
+    apt: update_cache=yes cache_valid_time=3600
+
+  - name: add git ppa
+    apt_repository:
+      repo: ppa:git-core/ppa
+      state: present
+
+  - name: install common packages
+    apt: pkg={{ item }} state=latest
+    with_items:
+    - git
+    - htop
+    - unzip
+    - python-pip
+    - acl
+    - build-essential
+    - python-pkg-resources
+
+  - name: install python libs
+    pip:
+      name: "{{ item }}"
+    with_items:
+    - passlib
+
+  - name: Add stationeers user
+    user:
+      name: stationeers
+      shell: /bin/bash
+  tasks:
+  - name: incude custom variables
+    include_vars:
+      file: "{{ var_file }}"
+    when: var_file is defined
+
+- name: Prepare certificates
+  hosts: all
+  pre_tasks:
+  - name: certificates direcotry
+    file:
+      path: "{{ cert_dir }}"
+      state: directory
+      mode: 0755
+
+  - name: create self-signed certificate
+    command: >
+      openssl req -x509 -nodes -subj '/CN={{ fqdn }}' -days 365
+      -newkey rsa:4096 -sha256 -keyout {{ cert_dir }}/{{ fqdn }}.key -out {{ cert_dir }}/{{ fqdn }}.crt
+    args:
+      creates: "{{ cert_dir }}/{{ fqdn }}.crt"
+
+# Playbook for Stationeers web server.
+# Ubuntu 16.04 is expected.
+- hosts: all
+  roles:
+  - gortc.nginx
+  - geerlingguy.docker
+  vars:
+    docker_install_compose: False  # will be installed via pip
+
+    gh_hook_secret: !vault |
+      $ANSIBLE_VAULT;1.1;AES256
+      32323530363436616133306166383362633162316231663139343632613561613263616139613963
+      3530386362326630386632646435366437653739396635650a626132383262386262383631656232
+      61656238303733303836616662323737613833636131653239323961316166666261613965313538
+      3033323833623637640a636566623761613932343062633435393938656163646430363733333361
+      63363731313432393863633463356533303638346135306532636532623437343364333332373837
+      6433383466666535653265303334396562613930383130313930
+
+    nginx_vhosts:
+    - listen: "443 ssl http2"
+      server_name: "{{ fqdn }}"
+      state: "present"
+      file: "stationeers.conf"
+      template: "{{ nginx_vhost_template }}"
+      acme: true
+      extra_parameters: |
+        gzip on;
+        gzip_types text/plain text/html image/svg+xml application/font-woff text/css application/xml;
+        location / {
+          proxy_pass_request_headers on;
+          proxy_set_header Host $host;
+          proxy_pass http://localhost:8000;
+          http2_push_preload on;
+          proxy_set_header X-Forwarded-Proto https;
+        }
+        ssl_certificate       {{ cert_dir }}/{{ fqdn }}.crt;
+        ssl_certificate_key   {{ cert_dir }}/{{ fqdn }}.key;
+        ssl_protocols         TLSv1.1 TLSv1.2;
+    - listen: "80"
+      acme: true
+      server_name: "{{ fqdn }}"
+      extra_parameters: |
+        location / {
+          return 301 https://{{ fqdn }}$request_uri;
+        }
+      filename: "stationeers.80.conf"
+
+  tasks:
+  - name: install docker python libs
+    pip:
+      name: "{{ item }}"
+    with_items:
+    - docker-compose
+    - docker
+
+  - name: copy env file
+    template:
+      src: webapp.env
+      dest: /home/stationeers/.env
+
+  - name: "service"
+    docker_service:
+      project_name: st
+      definition:
+        version: "2"
+        services:
+          # Pontoon base image.
+          base:
+            image: gortc/pontoon-base
+            env_file:
+            - /home/stationeers/.env
+
+          # Web app
+          webapp:
+            image: gortc/pontoon:v0.1.4
+            env_file:
+            - /home/stationeers/.env
+            environment:
+            - LOCAL_USER_ID=1000
+            depends_on:
+            - postgresql
+            command: ["/app/run_webapp.sh"]
+            ports:
+            - "8000:8000"
+            - "3000:3000"
+
+          # Worker
+          worker:
+            image: gortc/pontoon:v0.1.4
+            env_file:
+            - /home/stationeers/.env
+            environment:
+            - LOCAL_USER_ID=1000
+            depends_on:
+            - postgresql
+            - webapp
+            command: ["/app/run_worker.sh"]
+
+          postgresql:
+            image: gortc/pontoon-psql
+            environment:
+            # Create the superuser account
+            - POSTGRES_USER=pontoon
+            - POSTGRES_PASSWORD=asdf
+            - POSTGRES_DB=pontoon
+
+# Enable LetsEncrypt.
+- name: LetsEncrypt certificates
+  hosts: lego
+  tags:
+    - certs
+  vars:
+    cf_api_key: !vault |
+      $ANSIBLE_VAULT;1.1;AES256
+      38393836326365613430616232623633636437623935666463623064323032396232326364613661
+      3966303439323363316231316237373631613331323533340a663432323931323432353633663437
+      62636139356137636137393832376163313538613062313436393962373531323166313432373830
+      6332313337636362340a313135343335306533363562636336653864643464623937653337376231
+      39313132313933393264313032306138363330333763623332366135636533333764393463303463
+      3261383932363230333933633565653762663163613332393530
+
+    cf_api_email: !vault |
+      $ANSIBLE_VAULT;1.1;AES256
+      38336130363633336432613737623534363937356465623735663236636466303166353032373565
+      3864393636383836343666313861653934363433653462370a303538663239623165616332346134
+      31323934333730383362366235663837616638626636333463633635646133633731373538636530
+      3538363363393932660a663938356233383331326165633939373438363264646634616134343630
+      6264
+    domains:
+      - "{{ fqdn }}"
+  tasks:
+    - name: acme direcotry
+      file:
+        path: "{{ nginx_acme_dir }}"
+        state: directory
+        mode: 0755
+
+    - name: download lego
+      unarchive:
+        src: https://github.com/xenolf/lego/releases/download/{{ lego_version }}/lego_{{ lego_version }}_linux_amd64.tar.gz
+        dest: /usr/local/bin
+        remote_src: yes
+        creates: /usr/local/bin/lego
+
+    - name: install lego services
+      template:
+        src: lego.service
+        dest: /etc/systemd/system/lego@{{ item }}.service
+      loop: "{{ domains }}"
+
+    - name: install lego timers
+      template:
+        src: lego.timer
+        dest: /etc/systemd/system/lego@{{ item }}.timer
+      loop: "{{ domains }}"
+
+    - name: retrieve letsencrypt certificates
+      command: /usr/local/bin/lego -a -s {{ lego_server }} -d={{ item }} -m={{ lego_email }} --dns cloudflare --path={{ lego_dir }} run
+      args:
+        creates: "{{ cert_dir }}/{{ item }}.json"
+      notify: reload nginx
+      loop: "{{ domains }}"
+      environment:
+        CLOUDFLARE_EMAIL: "{{ cf_api_email }}"
+        CLOUDFLARE_API_KEY: "{{ cf_api_key }}"
+
+    - name: check lego certificate
+      stat:
+        path: "{{ cert_dir }}/{{ item }}.json"
+      register: "lego_cert"
+      loop: "{{ domains }}"
+
+    - assert:
+        that:
+          - "{{ item }}.stat.exists"
+      loop: "{{ lego_cert.results }}"
+
+    - name: ensure that lego timer is enabled and started
+      systemd:
+        name: "lego@{{ item }}.timer"
+        enabled: yes
+        state: started
+        daemon_reload: yes
+      loop: "{{ domains }}"
+
+  handlers:
+    - name: reload nginx
+      service: name=nginx state=reloaded

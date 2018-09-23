@@ -1,0 +1,8 @@
+---
+lego_version: v1.0.1
+lego_email: "ar@cydev.ru"
+lego_dir: /storage/lego
+cert_dir: "{{ lego_dir }}/certificates"
+nginx_conf_template: "{{ playbook_dir }}/templates/nginx.conf.j2"
+nginx_acme_dir: /storage/lego/acme/
+lego_server: https://acme-v02.api.letsencrypt.org/directory
