@@ -5,7 +5,7 @@ COPY set_up_ubuntu.sh /tmp/
 RUN DEBIAN_FRONTEND=noninteractive /tmp/set_up_ubuntu.sh
 
 # Create the app user
-RUN useradd --shell /bin/bash -c "" -m app
+RUN useradd -u 715 --shell /bin/bash -c "" -m app
 
 # st-l10n fork.
 ENV PONTOON_VER "v0.1.13"

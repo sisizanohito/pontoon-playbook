@@ -43,13 +43,42 @@
 
   - name: Add stationeers user
     user:
+      uid: "{{ app_user }}"
       name: stationeers
       shell: /bin/bash
+
   tasks:
   - name: incude custom variables
     include_vars:
       file: "{{ var_file }}"
     when: var_file is defined
+
+  - name: ensure ssh directory
+    file:
+      path: "/home/stationeers/.ssh"
+      state: directory
+      mode: 0700
+      group: stationeers
+      owner: stationeers
+
+  - name: ensure deploy ssh keys
+    copy:
+      src: "{{ item }}"
+      dest: "/home/stationeers/.ssh/{{ item }}"
+      owner: stationeers
+      group: stationeers
+      mode: 0600
+    loop:
+      - id_ed25519
+      - id_ed25519.pub
+
+  - name: ensure deploy ssh config
+    copy:
+      src: "ssh_cfg"
+      dest: "/home/stationeers/.ssh/config"
+      owner: stationeers
+      group: stationeers
+      mode: 0400
 
 - name: Prepare certificates
   hosts: all
@@ -74,9 +103,18 @@
   - gortc.nginx
   - geerlingguy.docker
   vars:
-    pontoon_version: v0.1.13
-
+    pontoon_version: v0.1.14
     docker_install_compose: False  # will be installed via pip
+
+    # Machine translation
+    microsoft_translator_api_key: !vault |
+      $ANSIBLE_VAULT;1.1;AES256
+      38623064336130613133616561316532343363643762656135643161616437306134626135643633
+      3936366362653562616431633561633330376366366163310a646265353965396533656136366434
+      33393632333434303138663665633032626132326662646334353761643363633465323862366463
+      6133626465343631350a336337383266396538326664356434356562376231366637313930663766
+      32636534363165313130633639326564666635663161346138633732313563363732616664633065
+      6366363939643534376465636133393532363834376464303066
 
     # OAuth creds for Discord.
     discord_client_id: 493582008325505044
@@ -131,13 +169,33 @@
       src: webapp.env
       dest: /home/stationeers/.env
 
+  - name: ensure data directories
+    file:
+      path: "/home/stationeers/media"
+      state: directory
+      mode: 0755
+      group: stationeers
+      owner: stationeers
+
+  - name: ensure db directories
+    file:
+      path: "/home/stationeers/db/{{ item }}"
+      state: directory
+      mode: 0755
+      group: "{{ postgres_user }}"
+      owner: "{{ postgres_user }}"
+    loop:
+      - data
+      - logs
+
   - name: "service"
+    register: output
     tags:
     - web
     docker_service:
       project_name: st
       definition:
-        version: "2"
+        version: "3"
         services:
           # Pontoon base image.
           base:
@@ -150,8 +208,11 @@
             image: "gortc/pontoon:{{ pontoon_version }}"
             env_file:
             - /home/stationeers/.env
+            volumes:
+            - /home/stationeers/.ssh:/home/app/.ssh
+            - /home/stationeers/media:/app/media
             environment:
-            - LOCAL_USER_ID=1000
+            - LOCAL_USER_ID={{ app_user }}
             depends_on:
             - postgresql
             - rabbit
@@ -165,8 +226,11 @@
             image: "gortc/pontoon:{{ pontoon_version }}"
             env_file:
             - /home/stationeers/.env
+            volumes:
+            - /home/stationeers/.ssh:/home/app/.ssh
+            - /home/stationeers/media:/app/media
             environment:
-            - LOCAL_USER_ID=1000
+            - LOCAL_USER_ID={{ app_user }}
             depends_on:
             - postgresql
             - webapp
@@ -180,6 +244,9 @@
             - POSTGRES_USER=pontoon
             - POSTGRES_PASSWORD=asdf
             - POSTGRES_DB=pontoon
+            - PGDATA=/data
+            volumes:
+              - /home/stationeers/db/data:/data
 
           # Celery broker
           rabbit:
@@ -191,7 +258,8 @@
             ports:
               - "15672:15672"
               - "5672:5672"
-
+  - debug:
+      var: output
 # Enable LetsEncrypt.
 - name: LetsEncrypt certificates
   hosts: lego
