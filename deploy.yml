@@ -74,14 +74,13 @@
   - gortc.nginx
   - geerlingguy.docker
   vars:
-    pontoon_version: v0.1.12
+    pontoon_version: v0.1.13
 
     docker_install_compose: False  # will be installed via pip
 
     # OAuth creds for Discord.
     discord_client_id: 493582008325505044
-
-    github_secret_key: !vault |
+    discord_secret_key: !vault |
       $ANSIBLE_VAULT;1.1;AES256
       39333834653334383763636565646366666439663661313836656166353266343566323337633930
       3637316238346231663666616332353662356235376532610a333934626664383530643662326534
