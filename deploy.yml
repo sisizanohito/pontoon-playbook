@@ -260,6 +260,24 @@
               - "5672:5672"
   - debug:
       var: output
+
+  - name: install services
+    template:
+      src: pontoon-sync.service
+      dest: /etc/systemd/system/pontoon-sync.service
+
+  - name: install timers
+    template:
+      src: pontoon-sync.timer
+      dest: /etc/systemd/system/pontoon-sync.timer
+
+  - name: ensure that timer is enabled and started
+    systemd:
+      name: "pontoon-sync.timer"
+      enabled: yes
+      state: started
+      daemon_reload: yes
+
 # Enable LetsEncrypt.
 - name: LetsEncrypt certificates
   hosts: lego

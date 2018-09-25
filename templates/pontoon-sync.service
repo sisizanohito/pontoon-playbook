@@ -1,0 +1,12 @@
+[Unit]
+Description=Pontoon Project Sync
+After=network-online.target
+Wants=network-online.target
+Wants=docker.service
+
+
+[Service]
+ExecStart=/usr/bin/docker exec st_webapp_1 python manage.py sync_projects
+Type=simple
+Restart=on-failure
+RestartSec=10s
