@@ -91,10 +91,54 @@
 
   - name: create self-signed certificate
     command: >
-      openssl req -x509 -nodes -subj '/CN={{ fqdn }}' -days 365
-      -newkey rsa:4096 -sha256 -keyout {{ cert_dir }}/{{ fqdn }}.key -out {{ cert_dir }}/{{ fqdn }}.crt
+      openssl req -x509 -nodes -subj '/CN={{ item }}' -days 365
+      -newkey rsa:4096 -sha256 -keyout {{ cert_dir }}/{{ item }}.key -out {{ cert_dir }}/{{ item }}.crt
     args:
-      creates: "{{ cert_dir }}/{{ fqdn }}.crt"
+      creates: "{{ cert_dir }}/{{ item }}.crt"
+    loop:
+      - "{{ root_domain }}"
+      - "tc.{{ root_domain }}"
+
+- name: TeamCity
+  hosts: all
+  roles:
+    - gortc.nginx
+  vars:
+    fqdn: tc.{{ root_domain }}
+    nginx_vhosts:
+      - listen: "443 ssl http2"
+        server_name: "{{ fqdn }}"
+        state: "present"
+        file: "{{ fqdn }}.conf"
+        template: "{{ nginx_vhost_template }}"
+        acme: true
+        extra_parameters: |
+          gzip on;
+          gzip_types text/plain image/svg+xml application/font-woff text/css application/xml;
+          ssl_certificate       {{ cert_dir }}/{{ fqdn }}.crt;
+          ssl_certificate_key   {{ cert_dir }}/{{ fqdn }}.key;
+          ssl_protocols         TLSv1.1 TLSv1.2;
+          ssl_stapling on;
+          ssl_stapling_verify on;
+          location / {
+            proxy_pass          http://127.0.0.1:8111; # full internal address
+            proxy_http_version  1.1;
+            proxy_set_header    Host $server_name:$server_port;
+            proxy_set_header    X-Forwarded-Host $http_host;    # necessary for proper absolute redirects and TeamCity CSRF check
+            proxy_set_header    X-Forwarded-Proto $scheme;
+            proxy_set_header    X-Forwarded-For $remote_addr;
+            proxy_set_header    Upgrade $http_upgrade;
+            proxy_set_header    Connection $connection_upgrade; # WebSocket support
+            proxy_set_header    X-Forwarded-SSL on;
+          }
+      - listen: "80"
+        acme: true
+        server_name: "{{ fqdn }}"
+        extra_parameters: |
+          location / {
+            return 301 https://{{ fqdn }}$request_uri;
+          }
+        filename: "{{ fqdn }}.80.conf"
 
 # Playbook for Stationeers web server.
 # Ubuntu 18.04 is expected.
@@ -105,6 +149,7 @@
   vars:
     pontoon_version: v0.1.14
     docker_install_compose: False  # will be installed via pip
+    fqdn: "{{ root_domain }}"
 
     # Machine translation
     microsoft_translator_api_key: !vault |
@@ -278,6 +323,89 @@
       state: started
       daemon_reload: yes
 
+# Install Steam
+- name: Steam
+  hosts: all
+  tags:
+  - steam
+  vars:
+    steam_password: !vault |
+      $ANSIBLE_VAULT;1.1;AES256
+      64373935636538316232336334323737393137363235343834373233646631353066306464353666
+      3062313062313763323938383132383232343137656338330a643234613162623031383964326439
+      37313734643939326564363934323332306230313933393839646430633433313739633033643139
+      3765646566656332650a343838653766316166376462633230373663643363353566626138323031
+      6566
+  tasks:
+  - name: install steam packages
+    apt: pkg={{ item }} state=latest
+    with_items:
+    - file
+    - bzip2
+    - gzip
+    - unzip
+    - bsdmainutils
+    - python
+    - util-linux
+    - ca-certificates
+    - binutils
+    - bc
+    - jq
+    - lib32gcc1
+    - libstdc++6
+    - libstdc++6:i386
+    - libcurl4-gnutls-dev:i386
+
+  - name: steam direcotry
+    file:
+      path: /home/stationeers/steam
+      state: directory
+      mode: 0755
+      group: stationeers
+      owner: stationeers
+
+  - name: download steam
+    unarchive:
+      src: http://media.steampowered.com/installer/steamcmd_linux.tar.gz
+      dest: /home/stationeers/steam
+      remote_src: yes
+      creates: /home/stationeers/steam/steamcmd.sh
+      group: stationeers
+      owner: stationeers
+
+  - name: copy update script
+    template:
+      src: update-game.sh
+      dest: /home/stationeers/update-game.sh
+      group: stationeers
+      owner: stationeers
+
+  - name: add resources repo
+    git:
+      repo: git@github.com:st-l10n/resources.git
+      dest: /home/stationeers/resources
+      clone: yes
+      update: no
+    become: yes
+    become_user: stationeers
+
+  - name: install services
+    template:
+      src: game-sync.service
+      dest: /etc/systemd/system/game-sync.service
+
+  - name: install timers
+    template:
+      src: game-sync.timer
+      dest: /etc/systemd/system/game-sync.timer
+
+  - name: ensure that timer is enabled and started
+    systemd:
+      name: "game-sync.timer"
+      enabled: yes
+      state: started
+      daemon_reload: yes
+
 # Enable LetsEncrypt.
 - name: LetsEncrypt certificates
   hosts: lego
@@ -301,7 +429,11 @@
       3538363363393932660a663938356233383331326165633939373438363264646634616134343630
       6264
     domains:
-      - "{{ fqdn }}"
+      - "{{ root_domain }}"
+      - "tc.{{ root_domain }}"
+  handlers:
+    - name: reload nginx
+      service: name=nginx state=reloaded
   tasks:
     - name: acme direcotry
       file:

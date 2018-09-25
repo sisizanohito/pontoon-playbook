@@ -1,0 +1,13 @@
+[Unit]
+Description=Stationeers Game Resources Sync
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/home/stationeers/update-game.sh
+Type=simple
+Restart=on-failure
+RestartSec=10s
+User=stationeers
+Group=stationeers
+WorkingDirectory=/home/stationeers

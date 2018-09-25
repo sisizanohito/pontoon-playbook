@@ -2,4 +2,4 @@
 rs
 
 [rs]
-st.gortc.io ansible_user=root fqdn=st.gortc.io
+st.gortc.io ansible_user=root root_domain=st.gortc.io
