@@ -265,6 +265,7 @@
             ports:
             - "8000:8000"
             - "3000:3000"
+            restart: always
 
           # Worker
           worker:
@@ -280,6 +281,7 @@
             - postgresql
             - webapp
             - rabbit
+            restart: always
             command: ["/app/run_worker.sh"]
 
           postgresql:
@@ -290,6 +292,7 @@
             - POSTGRES_PASSWORD=asdf
             - POSTGRES_DB=pontoon
             - PGDATA=/data
+            restart: always
             volumes:
               - /home/stationeers/db/data:/data
 
@@ -303,6 +306,7 @@
             ports:
               - "15672:15672"
               - "5672:5672"
+            restart: always
   - debug:
       var: output
 

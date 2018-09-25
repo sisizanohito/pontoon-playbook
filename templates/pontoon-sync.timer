@@ -1,10 +1,10 @@
 [Unit]
-Description=Run Pontoon sync every 1 minute
+Description=Run Pontoon sync every 5 minutes
 Requires=docker.service
 
 [Timer]
-OnActiveSec=1min
-OnUnitInactiveSec=1min
+OnActiveSec=5min
+OnUnitInactiveSec=5min
 
 [Install]
 WantedBy=timers.target
