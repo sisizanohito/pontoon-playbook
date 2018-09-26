@@ -54,7 +54,8 @@ if [[ `git status --porcelain` ]]; then
   git config user.email "43587554+st-l10n-bot@users.noreply.github.com"
   git config user.name "Stationeers Bot"
   git add version.txt hash.txt
-  git commit -a -m "automated update to ${updateversion}"
+  git ls-files . | grep '\.xml$' | grep english | xargs git add
+  git commit -m "automated update to ${updateversion}"
   git push origin master
 else
   echo -e "No changes detected"
