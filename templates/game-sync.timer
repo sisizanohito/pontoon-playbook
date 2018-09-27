@@ -1,9 +1,9 @@
 [Unit]
-Description=Run Game sync every 5 minutes
+Description=Run Game sync every 15 minutes
 
 [Timer]
-OnActiveSec=5min
-OnUnitInactiveSec=5min
+OnActiveSec=15min
+OnUnitInactiveSec=15min
 
 [Install]
 WantedBy=timers.target

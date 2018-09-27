@@ -8,7 +8,7 @@ ExecStartPost=/bin/systemctl reload nginx.service
 ExecStart=/usr/local/bin/lego -a -s {{ lego_server }} -d={{ item }} -m={{ lego_email }} --dns cloudflare --path=/storage/lego/ renew
 Type=simple
 Restart=on-failure
-RestartSec=10s
+RestartSec=5m
 PrivateTmp=yes
 Environment=CLOUDFLARE_EMAIL={{ cf_api_email }}
 Environment=CLOUDFLARE_API_KEY={{ cf_api_key }}

@@ -16,7 +16,7 @@ currentbuild=$(grep buildid "${appmanifestfile}" | tr '[:blank:]"' ' ' | tr -s '
 set -e
 
 # Remove cache.
-rm ~/steam/appcache/appinfo.vdf
+rm --force -v ~/steam/appcache/appinfo.vdf
 
 echo -e "Checking Steam Application version..."
 availablebuild=$(${steam} +login "${steamuser}" "${steampass}" +app_info_update 1 +app_info_print "${appid}" +quit | sed '1,/branches/d' | sed "1,/${branchname}/d" | grep -m 1 buildid | tr -cd '[:digit:]')
