@@ -8,7 +8,7 @@ RUN DEBIAN_FRONTEND=noninteractive /tmp/set_up_ubuntu.sh
 RUN useradd -u 715 --shell /bin/bash -c "" -m app
 
 # st-l10n fork.
-ENV PONTOON_VER "v0.1.13"
+ENV PONTOON_VER "v0.1.14"
 
 RUN git clone https://github.com/st-l10n/pontoon.git /app
 WORKDIR /app

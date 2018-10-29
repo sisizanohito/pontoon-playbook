@@ -147,7 +147,7 @@
   - gortc.nginx
   - geerlingguy.docker
   vars:
-    pontoon_version: v0.1.14
+    pontoon_version: v14
     docker_install_compose: False  # will be installed via pip
     fqdn: "{{ root_domain }}"
 
