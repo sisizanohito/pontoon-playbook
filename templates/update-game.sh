@@ -42,6 +42,7 @@ pushd ~/resources
 git fetch
 git reset --hard origin/master
 git clean -d -f
+git submodule update
 
 martian update --input ~/game/rocketstation_Data/StreamingAssets/
 find . -name "english*.xml" -type f -print0 | xargs -0 dos2unix
