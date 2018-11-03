@@ -52,7 +52,7 @@ find . -type f -name "english*.xml" -exec sha256sum "{}" \; > hash.txt
 
 echo -e "Update ${updateversion}"
 if [[ `git status --porcelain` ]]; then
-  git config user.email "43587554+st-l10n-bot@users.noreply.github.com"
+  git config user.email "stationeers@gortc.io"
   git config user.name "Stationeers Bot"
   git add version.txt hash.txt
   git ls-files . | grep '\.xml$' | grep english | xargs git add
