@@ -56,6 +56,7 @@ if [[ `git status --porcelain` ]]; then
   git config user.name "Stationeers Bot"
   git add version.txt hash.txt
   git ls-files . | grep '\.xml$' | grep english | xargs git add
+  git ls-files --others . | grep '\.xml$' | grep english | xargs git add
   git commit -m "automated update to ${updateversion}"
   git push origin master
 else
