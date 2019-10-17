@@ -44,10 +44,13 @@ git reset --hard origin/master
 git clean -d -f
 git submodule update
 
+echo "Martian start"
 martian update --input ~/game/rocketstation_Data/StreamingAssets/
+echo "Martian end"
+
 find . -name "english*.xml" -type f -print0 | xargs -0 dos2unix
 updateversion=$(grep -Po 'UPDATEVERSION=Update \S+' ~/game/rocketstation_Data/StreamingAssets/version.ini | sed -e "s/^UPDATEVERSION=Update //")
-echo ${updateversion} > version.txt
+echo "${updateversion}" > version.txt
 find . -type f -name "english*.xml" -exec sha256sum "{}" \; > hash.txt
 
 echo -e "Update ${updateversion}"
@@ -55,8 +58,8 @@ if [[ `git status --porcelain` ]]; then
   git config user.email "stationeers@gortc.io"
   git config user.name "Stationeers Bot"
   git add version.txt hash.txt
-  git ls-files . | grep '\.xml$' | grep english | xargs git add
-  git ls-files --others . | grep '\.xml$' | grep english | xargs git add
+  git ls-files . | grep '\.xml$' | grep english --null | tr '\n' '\0' | xargs -0 -n1 git add
+  git ls-files --others . | grep '\.xml$' | grep english --null | tr '\n' '\0' | xargs -0 -n1 git add
   git commit -m "automated update to ${updateversion}"
   git push origin master
 else
