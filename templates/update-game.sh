@@ -36,7 +36,7 @@ else
 	echo -e "	https://steamdb.info/app/${appid}/"
 fi
 
-pushd ~/resources
+pushd ~/stationeers_resources
 
 # Clean the resources repo.
 git fetch
@@ -55,13 +55,13 @@ find . -type f -name "english*.xml" -exec sha256sum "{}" \; > hash.txt
 
 echo -e "Update ${updateversion}"
 if [[ `git status --porcelain` ]]; then
-  git config user.email "stationeers@gortc.io"
+  git config user.email "sisizanohito@gmail.com"
   git config user.name "Stationeers Bot"
   git add version.txt hash.txt
   git ls-files . | grep '\.xml$' | grep english --null | tr '\n' '\0' | xargs -0 -n1 git add
   git ls-files --others . | grep '\.xml$' | grep english --null | tr '\n' '\0' | xargs -0 -n1 git add
   git commit -m "automated update to ${updateversion}"
-  git push origin master
+  git push origin main
 else
   echo -e "No changes detected"
 fi
