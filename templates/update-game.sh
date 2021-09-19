@@ -4,11 +4,11 @@ green="\e[32m"
 default="\e[0m"
 red="\e[31m"
 
-steamuser="{{ steam_user }}"
-steampass="{{ steam_password }}"
-appid="{{ steam_appid }}"
-branchname="{{ steam_branch }}"
-steam=~/steam/steamcmd.sh
+steamuser=
+steampass=
+appid="544550"
+branchname="bata"
+steam=steamcmd
 
 appmanifestfile=$(find ~/game -type f -name "appmanifest_${appid}.acf")
 currentbuild=$(grep buildid "${appmanifestfile}" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d\  -f3)
@@ -40,13 +40,17 @@ pushd ~/stationeers_resources
 
 # Clean the resources repo.
 git fetch
-git reset --hard origin/master
+git reset --hard origin/main
 git clean -d -f
-git submodule update
+git submodule update --remote
 
 echo "Martian start"
 martian update --input ~/game/rocketstation_Data/StreamingAssets/
 echo "Martian end"
+
+echo "locales update start"
+sh locales_update.sh
+echo "locales update end"
 
 find . -name "english*.xml" -type f -print0 | xargs -0 dos2unix
 updateversion=$(grep -Po 'UPDATEVERSION=Update \S+' ~/game/rocketstation_Data/StreamingAssets/version.ini | sed -e "s/^UPDATEVERSION=Update //")
@@ -58,6 +62,7 @@ if [[ `git status --porcelain` ]]; then
   git config user.email "sisizanohito@gmail.com"
   git config user.name "Stationeers Bot"
   git add version.txt hash.txt
+  git add locales
   git ls-files . | grep '\.xml$' | grep english --null | tr '\n' '\0' | xargs -0 -n1 git add
   git ls-files --others . | grep '\.xml$' | grep english --null | tr '\n' '\0' | xargs -0 -n1 git add
   git commit -m "automated update to ${updateversion}"
