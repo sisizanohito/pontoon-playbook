@@ -48,14 +48,14 @@ echo "Martian start"
 martian update --input ~/game/rocketstation_Data/StreamingAssets/
 echo "Martian end"
 
-echo "locales update start"
-sh locales_update.sh
-echo "locales update end"
-
 find . -name "english*.xml" -type f -print0 | xargs -0 dos2unix
 updateversion=$(grep -Po 'UPDATEVERSION=Update \S+' ~/game/rocketstation_Data/StreamingAssets/version.ini | sed -e "s/^UPDATEVERSION=Update //")
 echo "${updateversion}" > version.txt
 find . -type f -name "english*.xml" -exec sha256sum "{}" \; > hash.txt
+
+echo "locales update start"
+sh locales_update.sh
+echo "locales update end"
 
 echo -e "Update ${updateversion}"
 if [[ `git status --porcelain` ]]; then
