@@ -42,7 +42,7 @@ pushd ~/stationeers_resources
 git fetch
 git reset --hard origin/main
 git clean -d -f
-git submodule update --remote
+git submodule update --remote --merge
 
 echo "Martian start"
 martian update --input ~/game/rocketstation_Data/StreamingAssets/
